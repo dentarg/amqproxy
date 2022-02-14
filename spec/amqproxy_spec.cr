@@ -2,12 +2,12 @@ require "./spec_helper"
 
 describe AMQProxy::Server do
   it "keeps connections open" do
-    s = AMQProxy::Server.new("127.0.0.1", 5672, false, Logger::DEBUG)
+    s = AMQProxy::Server.new("127.0.0.1", 5672, UPSTREAM_TLS, Logger::DEBUG)
     begin
       spawn { s.listen("127.0.0.1", 5673) }
       Fiber.yield
       10.times do
-        AMQP::Client.start("amqp://localhost:5673") do |conn|
+        AMQP::Client.start(CLIENT_URL) do |conn|
           conn.channel
           s.client_connections.should eq 1
           s.upstream_connections.should eq 1
@@ -22,11 +22,11 @@ describe AMQProxy::Server do
   end
 
   it "can reconnect if upstream closes" do
-    s = AMQProxy::Server.new("127.0.0.1", 5672, false, Logger::DEBUG)
+    s = AMQProxy::Server.new("127.0.0.1", 5672, UPSTREAM_TLS, Logger::DEBUG)
     begin
       spawn { s.listen("127.0.0.1", 5673) }
       Fiber.yield
-      AMQP::Client.start("amqp://localhost:5673") do |conn|
+      AMQP::Client.start(CLIENT_URL) do |conn|
         conn.channel
         system("sudo rabbitmqctl stop_app > /dev/null").should be_true
       end
@@ -46,11 +46,11 @@ describe AMQProxy::Server do
 
   it "responds to upstream heartbeats" do
     system("sudo rabbitmqctl eval 'application:set_env(rabbit, heartbeat, 1).' > /dev/null").should be_true
-    s = AMQProxy::Server.new("127.0.0.1", 5672, false, Logger::DEBUG)
+    s = AMQProxy::Server.new("127.0.0.1", 5672, UPSTREAM_TLS, Logger::DEBUG)
     begin
       spawn { s.listen("127.0.0.1", 5673) }
       Fiber.yield
-      AMQP::Client.start("amqp://localhost:5673") do |conn|
+      AMQP::Client.start(CLIENT_URL) do |conn|
         conn.channel
       end
       sleep 2
